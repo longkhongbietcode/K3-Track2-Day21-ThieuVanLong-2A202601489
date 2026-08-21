@@ -13,6 +13,14 @@ on:
       - '.github/workflows/mlops.yml'
   workflow_dispatch:
 
+# Job Deploy mo roi go rule SSH tren cung mot security group va ghi de
+# models/latest/ tren S3. Neu hai lan chay chong nhau, mot lan co the go rule
+# ngay khi lan kia dang SSH. Xep hang tuan tu thay vi huy giua chung, vi huy
+# ngang co the de lai rule mo tren security group.
+concurrency:
+  group: mlops-pipeline-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   test:
     name: Unit Test
