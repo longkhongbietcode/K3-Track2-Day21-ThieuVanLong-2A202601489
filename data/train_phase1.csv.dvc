@@ -1,4 +1,4 @@
-# Phase 2 dataset: 5996 samples
+# Phase 2 dataset: 5996 samples (DVC)
 outs:
 - md5: 5853e7711c78f02286e65fca6cb6e124
   size: 368068
