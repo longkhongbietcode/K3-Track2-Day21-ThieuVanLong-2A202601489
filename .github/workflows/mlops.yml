@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'data/*.dvc'
+      - 'data/**.dvc'
       - 'src/**.py'
       - 'tests/**.py'
       - 'params.yaml'
@@ -35,6 +36,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       accuracy: ${{ steps.read_metrics.outputs.accuracy }}
+      f1_score: ${{ steps.read_metrics.outputs.f1_score }}
+      previous_accuracy: ${{ steps.previous_metrics.outputs.previous_accuracy }}
 
     steps:
       - uses: actions/checkout@v4
@@ -59,42 +62,61 @@ jobs:
       - name: Pull data with DVC
         run: dvc pull data/train_phase1.csv.dvc data/eval.csv.dvc
 
+      # Bonus 4: doc metrics cua model dang chay TRUOC khi ghi de model moi.
+      - name: Download previous metrics
+        id: previous_metrics
+        env:
+          CLOUD_BUCKET: ${{ secrets.CLOUD_BUCKET }}
+        run: |
+          mkdir -p outputs
+          if aws s3 cp "s3://$CLOUD_BUCKET/models/latest/metrics.json" outputs/prev_metrics.json; then
+            PREV=$(python -c "import json; print(json.load(open('outputs/prev_metrics.json'))['accuracy'])")
+            echo "Model dang chay co accuracy = $PREV"
+          else
+            PREV=""
+            echo "Chua co model nao tren S3 - bo qua kiem tra hoi quy."
+          fi
+          echo "previous_accuracy=$PREV" >> "$GITHUB_OUTPUT"
+
+      # Bonus 1: dung MLflow tracking server tu xa neu secret duoc cau hinh,
+      # neu khong thi quay ve SQLite cuc bo nhu cu.
       - name: Train model
         env:
-          MLFLOW_TRACKING_URI: sqlite:///mlflow.db
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI || 'sqlite:///mlflow.db' }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+          MLFLOW_EXPERIMENT_NAME: wine-quality-ci
         run: python src/train.py
 
       - name: Read metrics
         id: read_metrics
         run: |
           ACC=$(python -c "import json; print(json.load(open('outputs/metrics.json'))['accuracy'])")
+          F1=$(python -c "import json; print(json.load(open('outputs/metrics.json'))['f1_score'])")
           echo "accuracy=$ACC" >> "$GITHUB_OUTPUT"
+          echo "f1_score=$F1" >> "$GITHUB_OUTPUT"
 
-      - name: Upload model to S3
+      - name: Show performance report
+        run: cat outputs/report.txt
+
+      # Model moi len S3 duoi dang "candidate". Chi job Deploy moi duoc phep
+      # thang hang no thanh "latest" sau khi qua toan bo eval gate.
+      - name: Upload candidate model to S3
         env:
           CLOUD_BUCKET: ${{ secrets.CLOUD_BUCKET }}
         run: |
-          python - <<'PY'
-          import os
-          import boto3
+          aws s3 cp models/model.pkl "s3://$CLOUD_BUCKET/models/candidate/model.pkl"
+          aws s3 cp outputs/metrics.json "s3://$CLOUD_BUCKET/models/candidate/metrics.json"
+          aws s3 cp outputs/report.txt "s3://$CLOUD_BUCKET/models/candidate/report.txt"
 
-          bucket = os.environ["CLOUD_BUCKET"]
-          key = "models/latest/model.pkl"
-
-          boto3.client("s3").upload_file(
-              "models/model.pkl",
-              bucket,
-              key,
-          )
-
-          print(f"Uploaded s3://{bucket}/{key}")
-          PY
-
-      - name: Save metrics as artifact
+      # Bonus 3: luu bao cao hieu suat cung metrics.json.
+      - name: Save metrics and report as artifact
         uses: actions/upload-artifact@v4
         with:
           name: metrics
-          path: outputs/metrics.json
+          path: |
+            outputs/metrics.json
+            outputs/report.txt
 
   eval:
     name: Eval
@@ -111,14 +133,65 @@ jobs:
                   f"FAILED: accuracy {acc:.4f} < 0.70. Huy deploy."
               )
 
-          print(f"PASSED: accuracy {acc:.4f}. Dang deploy.")
+          print(f"PASSED: accuracy {acc:.4f} >= 0.70.")
+          PY
+
+      # Bonus 4: chan deploy neu model moi kem hon model dang chay.
+      - name: Check regression against deployed model
+        run: |
+          python - <<'PY'
+          acc = float("${{ needs.train.outputs.accuracy }}")
+          prev_raw = "${{ needs.train.outputs.previous_accuracy }}".strip()
+
+          if not prev_raw:
+              print(
+                  "Chua co model nao dang chay tren S3. "
+                  "Bo qua kiem tra hoi quy, cho phep deploy lan dau."
+              )
+              raise SystemExit(0)
+
+          prev = float(prev_raw)
+          delta = acc - prev
+          print(f"Model dang chay : {prev:.4f}")
+          print(f"Model moi       : {acc:.4f}")
+          print(f"Chenh lech      : {delta:+.4f}")
+
+          if acc < prev:
+              raise SystemExit(
+                  f"FAILED: model moi ({acc:.4f}) kem hon model dang chay "
+                  f"({prev:.4f}). Huy deploy, giu nguyen phien ban cu."
+              )
+
+          print("PASSED: model moi khong kem hon model dang chay. Dang deploy.")
           PY
 
   deploy:
     name: Deploy
-    needs: eval
+    needs: [train, eval]
     runs-on: ubuntu-latest
     steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # Chi den day - sau khi qua ca hai gate - model moi duoc thang hang.
+      # Nho vay neu pipeline bi chan, S3 van giu model tot cuoi cung va VM
+      # co restart bat ngo cung khong nap phai model bi tu choi.
+      - name: Promote candidate model to latest
+        env:
+          CLOUD_BUCKET: ${{ secrets.CLOUD_BUCKET }}
+        run: |
+          aws s3 cp "s3://$CLOUD_BUCKET/models/candidate/model.pkl" \
+                    "s3://$CLOUD_BUCKET/models/latest/model.pkl"
+          aws s3 cp "s3://$CLOUD_BUCKET/models/candidate/metrics.json" \
+                    "s3://$CLOUD_BUCKET/models/latest/metrics.json"
+          aws s3 cp "s3://$CLOUD_BUCKET/models/candidate/report.txt" \
+                    "s3://$CLOUD_BUCKET/models/latest/report.txt"
+          echo "Da thang hang model (accuracy ${{ needs.train.outputs.accuracy }}) len models/latest/."
+
       - name: SSH deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:

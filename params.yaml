@@ -1,5 +1,13 @@
-# Sieu tham so cho mo hinh RandomForestClassifier
-# Thay doi cac gia tri nay giua cac lan chay de thi nghiem (Buoc 1)
+# Sieu tham so cho mo hinh phan loai chat luong ruou vang.
+# Thay doi cac gia tri nay giua cac lan chay de thi nghiem (Buoc 1).
+#
+# model_type chon thuat toan (Bonus 2):
+#   random_forest       -> RandomForestClassifier
+#   gradient_boosting   -> GradientBoostingClassifier
+#   logistic_regression -> LogisticRegression
+# Cac khoa con lai duoc truyen thang vao constructor cua thuat toan da chon,
+# nen khi doi model_type phai doi kem bo sieu tham so tuong ung.
+model_type: random_forest
 n_estimators: 500
 max_depth: 15
 min_samples_split: 2
