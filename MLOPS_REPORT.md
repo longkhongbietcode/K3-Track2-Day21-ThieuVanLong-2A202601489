@@ -53,10 +53,14 @@ không đổi, code không đổi, chỉ dữ liệu mới làm nên khác biệ
 
 ## 3. Kết quả pipeline
 
-| Giai đoạn | Unit Test | Train | Eval | Deploy |
-|---|---|---|---|---|
-| Phase 1 (2.998 mẫu) | ✅ | ✅ | ❌ chặn tại gate 0,70 | ⏭️ skipped |
-| Phase 2 (5.996 mẫu) | ✅ | ✅ | ✅ | ✅ |
+| Giai đoạn | Trigger | Unit Test | Train | Eval | Deploy |
+|---|---|---|---|---|---|
+| [Phase 1 (2.998 mẫu)](https://github.com/longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489/actions/runs/32499561084) | push commit dữ liệu | ✅ | ✅ | ❌ chặn tại gate 0,70 | ⏭️ skipped |
+| [Phase 2 (5.996 mẫu)](https://github.com/longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489/actions/runs/32500181695) | push commit dữ liệu | ✅ | ✅ | ✅ | ✅ |
+
+Cả hai lần chạy đều được kích hoạt tự động bởi một lệnh `git push` con trỏ DVC, không có
+thao tác thủ công nào. Khi pipeline bị chặn ở phase 1, `models/latest/` trên S3 giữ nguyên
+model tốt trước đó — kiểm chứng bằng timestamp trong [docs/EVIDENCE.md](docs/EVIDENCE.md).
 
 API đang phục vụ: `http://13.212.232.83:8000` (EC2 `i-0903a309e10cfef6c`).
 `GET /health` → `{"status":"ok"}`; `POST /predict` → `{"prediction":0,"label":"thap"}`;
@@ -93,3 +97,12 @@ chạy đủ bốn jobs tự động.
 **Test làm bẩn MLflow.** Mỗi lần chạy `pytest`, ba test huấn luyện mô hình đồ chơi và ghi
 run rác (accuracy ~0,27) vào `mlflow.db`, làm nhiễu MLflow UI dùng để so sánh thí nghiệm.
 Đã thêm `tests/conftest.py` chuyển MLflow sang store tạm thời trong lúc test.
+
+**IAM quá chặt và security group khoá SSH.** Khi chạy lại pipeline, hai lỗi cấu hình có sẵn
+mới lộ ra: policy của user `mlops-github-actions` không cho ghi ngoài `models/latest/*` và
+không cho đọc lại metrics của model đang chạy; đồng thời port 22 chỉ mở cho IP máy cá nhân
+nên runner GitHub không SSH vào được — service trên EC2 chưa hề restart dù pipeline báo
+xanh ở các bước trước. Đã sửa bằng cách chuyển model qua artifact của workflow, bổ sung
+đúng một statement `s3:GetObject` cho `models/latest/*`, và cho job Deploy mở tạm port 22
+đúng IP runner rồi gỡ ra ở step `always()` thay vì phơi SSH ra toàn Internet. Chi tiết ở
+mục 6 của [docs/EVIDENCE.md](docs/EVIDENCE.md).
