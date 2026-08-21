@@ -42,17 +42,29 @@ dvc remote list
 aws s3 ls s3://mlops-wine-long-2026-320628059591/dvc/ --recursive
 ```
 
-Kết quả thật — 4 phiên bản object:
+Output thật của lệnh trên:
 
-```
-368068  dvc/files/md5/58/53e7711c78f02286e65fca6cb6e124   train_phase1 (5.996 mẫu)
- 30769  dvc/files/md5/b1/1de6b7adaa93a44278fd7e168b2288   eval (500 mẫu)
-184090  dvc/files/md5/c4/3afab731fd6431a94f888fdc687876   train_phase1 (2.998 mẫu)
-184134  dvc/files/md5/fd/073d6651b2ff224c0da1eb1c049a32   train_phase2 (2.998 mẫu)
+```console
+2026-08-21 21:05:30     368068 dvc/files/md5/58/53e7711c78f02286e65fca6cb6e124
+2026-08-21 20:23:07      30769 dvc/files/md5/b1/1de6b7adaa93a44278fd7e168b2288
+2026-08-21 20:23:07     184090 dvc/files/md5/c4/3afab731fd6431a94f888fdc687876
+2026-08-21 20:23:05     184134 dvc/files/md5/fd/073d6651b2ff224c0da1eb1c049a32
 ```
 
-Hai phiên bản của `train_phase1.csv` cùng tồn tại — đây chính là giá trị của việc phiên bản
-hóa dữ liệu: có thể quay lại tập cũ bất cứ lúc nào, và vòng Bước 3 ở mục 4 đã làm đúng vậy.
+DVC lưu theo nội dung chứ không theo tên: key trên S3 được ghép từ chính md5 của file
+(`5853e771...` → `files/md5/58/53e7711c...`). Tên file chỉ nằm trong con trỏ `.dvc` được
+commit vào git. Đối chiếu md5 trong bảng dưới với các key ở trên:
+
+| Con trỏ trong git | md5 | size | Nội dung |
+|---|---|---:|---|
+| `data/train_phase1.csv.dvc` | `5853e771…` | 368.068 B | train_phase1 sau khi thêm phase 2 (5.996 mẫu) |
+| `data/eval.csv.dvc` | `b11de6b7…` | 30.769 B | eval held-out (500 mẫu) |
+| *(phiên bản cũ)* | `c43afab7…` | 184.090 B | train_phase1 nguyên bản (2.998 mẫu) |
+| `data/train_phase2.csv.dvc` | `fd073d66…` | 184.134 B | train_phase2 (2.998 mẫu) |
+
+Hai phiên bản của `train_phase1.csv` cùng tồn tại trên S3 mà không đè nhau vì nội dung khác
+nhau nên md5 khác nhau. Đây chính là giá trị của việc phiên bản hóa dữ liệu: có thể quay về
+tập cũ bất cứ lúc nào — vòng Bước 3 ở mục 4 đã làm đúng vậy mà không phải tải lại dữ liệu.
 
 File CSV bị `.gitignore` chặn, chỉ con trỏ `.dvc` được commit. Bằng chứng gián tiếp mạnh
 nhất: step **"Pull data with DVC"** chạy thành công trên runner sạch của GitHub ở mọi lần
