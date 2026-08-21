@@ -1,0 +1,35 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListDVCObjects",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::mlops-wine-long-2026-320628059591",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "dvc/*",
+            "models/*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "ReadDVCData",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::mlops-wine-long-2026-320628059591/dvc/*"
+    },
+    {
+      "Sid": "UploadModel",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject"
+      ],
+      "Resource": "arn:aws:s3:::mlops-wine-long-2026-320628059591/models/latest/*"
+    }
+  ]
+}

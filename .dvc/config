@@ -1,0 +1,5 @@
+[core]
+    site_cache_dir = .dvc/site-cache
+    remote = myremote
+['remote "myremote"']
+    url = s3://mlops-wine-long-2026-320628059591/dvc

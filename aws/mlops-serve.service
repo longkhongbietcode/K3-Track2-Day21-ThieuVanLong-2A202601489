@@ -1,0 +1,16 @@
+[Unit]
+Description=MLOps Model Inference Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu
+Environment="S3_BUCKET=mlops-wine-long-2026-320628059591"
+Environment="AWS_DEFAULT_REGION=ap-southeast-1"
+ExecStart=/home/ubuntu/mlops-venv/bin/python /home/ubuntu/src/serve.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
