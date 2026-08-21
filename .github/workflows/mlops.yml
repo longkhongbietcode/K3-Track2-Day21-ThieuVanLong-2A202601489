@@ -99,15 +99,18 @@ jobs:
       - name: Show performance report
         run: cat outputs/report.txt
 
-      # Model moi len S3 duoi dang "candidate". Chi job Deploy moi duoc phep
-      # thang hang no thanh "latest" sau khi qua toan bo eval gate.
-      - name: Upload candidate model to S3
-        env:
-          CLOUD_BUCKET: ${{ secrets.CLOUD_BUCKET }}
-        run: |
-          aws s3 cp models/model.pkl "s3://$CLOUD_BUCKET/models/candidate/model.pkl"
-          aws s3 cp outputs/metrics.json "s3://$CLOUD_BUCKET/models/candidate/metrics.json"
-          aws s3 cp outputs/report.txt "s3://$CLOUD_BUCKET/models/candidate/report.txt"
+      # Model moi duoc giu lai duoi dang artifact cua workflow, CHUA day len S3.
+      # Chi job Deploy moi thang hang no thanh models/latest/ sau khi qua eval gate,
+      # nho vay khi pipeline bi chan thi S3 van giu nguyen model tot cuoi cung.
+      - name: Upload candidate model as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-model
+          path: |
+            models/model.pkl
+            outputs/metrics.json
+            outputs/report.txt
+          retention-days: 7
 
       # Bonus 3: luu bao cao hieu suat cung metrics.json.
       - name: Save metrics and report as artifact
@@ -177,6 +180,11 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Download candidate model
+        uses: actions/download-artifact@v4
+        with:
+          name: candidate-model
+
       # Chi den day - sau khi qua ca hai gate - model moi duoc thang hang.
       # Nho vay neu pipeline bi chan, S3 van giu model tot cuoi cung va VM
       # co restart bat ngo cung khong nap phai model bi tu choi.
@@ -184,12 +192,9 @@ jobs:
         env:
           CLOUD_BUCKET: ${{ secrets.CLOUD_BUCKET }}
         run: |
-          aws s3 cp "s3://$CLOUD_BUCKET/models/candidate/model.pkl" \
-                    "s3://$CLOUD_BUCKET/models/latest/model.pkl"
-          aws s3 cp "s3://$CLOUD_BUCKET/models/candidate/metrics.json" \
-                    "s3://$CLOUD_BUCKET/models/latest/metrics.json"
-          aws s3 cp "s3://$CLOUD_BUCKET/models/candidate/report.txt" \
-                    "s3://$CLOUD_BUCKET/models/latest/report.txt"
+          aws s3 cp models/model.pkl "s3://$CLOUD_BUCKET/models/latest/model.pkl"
+          aws s3 cp outputs/metrics.json "s3://$CLOUD_BUCKET/models/latest/metrics.json"
+          aws s3 cp outputs/report.txt "s3://$CLOUD_BUCKET/models/latest/report.txt"
           echo "Da thang hang model (accuracy ${{ needs.train.outputs.accuracy }}) len models/latest/."
 
       - name: SSH deploy to EC2

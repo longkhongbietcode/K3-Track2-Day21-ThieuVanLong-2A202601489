@@ -24,6 +24,14 @@
       "Resource": "arn:aws:s3:::mlops-wine-long-2026-320628059591/dvc/*"
     },
     {
+      "Sid": "ReadDeployedModelMetrics",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::mlops-wine-long-2026-320628059591/models/latest/*"
+    },
+    {
       "Sid": "UploadModel",
       "Effect": "Allow",
       "Action": [
