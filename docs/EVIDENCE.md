@@ -12,15 +12,15 @@ Repo: `longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489`
 mlflow ui --backend-store-uri sqlite:///mlflow.db     # http://localhost:5000
 ```
 
-| # | model_type | Siêu tham số | n_train | accuracy | f1_score |
-|---|---|---|---:|---:|---:|
-| 1 | random_forest | n=50, depth=3, split=2 | 2.998 | 0,5580 | 0,5185 |
-| 2 | random_forest | n=100, depth=5, split=2 | 2.998 | 0,5640 | 0,5534 |
-| 3 | random_forest | n=200, depth=10, split=5 | 2.998 | 0,6440 | 0,6417 |
-| 4 | random_forest | n=500, depth=15, balanced_subsample | 2.998 | 0,6880 | 0,6872 |
-| 5 | logistic_regression | max_iter=1000, C=1.0 | 5.996 | 0,5240 | 0,5078 |
-| 6 | gradient_boosting | n=200, depth=3, lr=0.1 | 5.996 | 0,6420 | 0,6390 |
-| 7 | random_forest | n=500, depth=15, balanced_subsample | 5.996 | 0,7360 | 0,7355 |
+| # | model_type          | Siêu tham số                      | n_train | accuracy | f1_score |
+| - | ------------------- | ----------------------------------- | ------: | -------: | -------: |
+| 1 | random_forest       | n=50, depth=3, split=2              |   2.998 |   0,5580 |   0,5185 |
+| 2 | random_forest       | n=100, depth=5, split=2             |   2.998 |   0,5640 |   0,5534 |
+| 3 | random_forest       | n=200, depth=10, split=5            |   2.998 |   0,6440 |   0,6417 |
+| 4 | random_forest       | n=500, depth=15, balanced_subsample |   2.998 |   0,6880 |   0,6872 |
+| 5 | logistic_regression | max_iter=1000, C=1.0                |   5.996 |   0,5240 |   0,5078 |
+| 6 | gradient_boosting   | n=200, depth=3, lr=0.1              |   5.996 |   0,6420 |   0,6390 |
+| 7 | random_forest       | n=500, depth=15, balanced_subsample |   5.996 |   0,7360 |   0,7355 |
 
 Đủ điều kiện: **7 run thí nghiệm, 6 bộ siêu tham số, 3 thuật toán**, mọi run đều có cả
 `accuracy` lẫn `f1_score`.
@@ -28,8 +28,10 @@ mlflow ui --backend-store-uri sqlite:///mlflow.db     # http://localhost:5000
 > `tests/conftest.py` chuyển MLflow sang store tạm khi chạy pytest, nên `mlflow.db` chỉ
 > chứa thí nghiệm thật, không lẫn run rác từ unit test.
 
-**📸 Cần chụp:** MLflow UI sắp xếp theo `accuracy` giảm dần, hiển thị đủ 7 run.
-→ `docs/img/01-mlflow-runs.png`
+![MLflow UI với 9 run, sắp xếp theo accuracy giảm dần](img/01-mlflow-runs.png)
+
+MLflow UI sắp xếp theo `accuracy` giảm dần. Cột `model_type` hiện `-` ở các run cũ vì chúng
+chạy trước khi khoá `model_type` được thêm vào `params.yaml` — tất cả đều là RandomForest.
 
 ---
 
@@ -55,12 +57,12 @@ DVC lưu theo nội dung chứ không theo tên: key trên S3 được ghép t�
 (`5853e771...` → `files/md5/58/53e7711c...`). Tên file chỉ nằm trong con trỏ `.dvc` được
 commit vào git. Đối chiếu md5 trong bảng dưới với các key ở trên:
 
-| Con trỏ trong git | md5 | size | Nội dung |
-|---|---|---:|---|
+| Con trỏ trong git            | md5            |      size | Nội dung                                       |
+| ----------------------------- | -------------- | --------: | ----------------------------------------------- |
 | `data/train_phase1.csv.dvc` | `5853e771…` | 368.068 B | train_phase1 sau khi thêm phase 2 (5.996 mẫu) |
-| `data/eval.csv.dvc` | `b11de6b7…` | 30.769 B | eval held-out (500 mẫu) |
-| *(phiên bản cũ)* | `c43afab7…` | 184.090 B | train_phase1 nguyên bản (2.998 mẫu) |
-| `data/train_phase2.csv.dvc` | `fd073d66…` | 184.134 B | train_phase2 (2.998 mẫu) |
+| `data/eval.csv.dvc`         | `b11de6b7…` |  30.769 B | eval held-out (500 mẫu)                        |
+| *(phiên bản cũ)*         | `c43afab7…` | 184.090 B | train_phase1 nguyên bản (2.998 mẫu)          |
+| `data/train_phase2.csv.dvc` | `fd073d66…` | 184.134 B | train_phase2 (2.998 mẫu)                       |
 
 Hai phiên bản của `train_phase1.csv` cùng tồn tại trên S3 mà không đè nhau vì nội dung khác
 nhau nên md5 khác nhau. Đây chính là giá trị của việc phiên bản hóa dữ liệu: có thể quay về
@@ -70,8 +72,14 @@ File CSV bị `.gitignore` chặn, chỉ con trỏ `.dvc` được commit. Bằn
 nhất: step **"Pull data with DVC"** chạy thành công trên runner sạch của GitHub ở mọi lần
 chạy — dữ liệu thực sự nằm trên S3.
 
-**📸 Cần chụp:** AWS S3 Console, prefix `dvc/files/md5/` và `models/latest/`.
-→ `docs/img/04-s3-bucket.png`
+AWS S3 Console — prefix `dvc/files/md5/` có 4 nhánh băm `58/`, `b1/`, `c4/`, `fd/`, mỗi
+nhánh chứa một phiên bản dữ liệu (khớp với 4 key trong output `aws s3 ls` ở trên):
+
+![S3 Console, thư mục dvc/files/md5/](img/04b-s3-dvc.png)
+
+Và `models/latest/` chứa model cùng hai file phụ trợ của Bonus 3 và Bonus 4:
+
+![S3 Console, thư mục models/latest/](img/04-s3-models.png)
 
 ---
 
@@ -84,20 +92,25 @@ curl -s "https://api.github.com/repos/longkhongbietcode/K3-Track2-Day21-ThieuVan
   | python -c "import json,sys; [print(j['name'],'->',j['conclusion']) for j in json.load(sys.stdin)['jobs']]"
 ```
 
-| Run | Trigger | Test | Train | Eval | Deploy | Ghi chú |
-|---|---|---|---|---|---|---|
-| [32489775163](https://github.com/longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489/actions/runs/32489775163) | dispatch | ✅ | ✅ | ❌ | ⏭️ | eval gate chặn (0,688) |
-| [32490631626](https://github.com/longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489/actions/runs/32490631626) | dispatch | ✅ | ✅ | ✅ | ✅ | |
-| [32492303559](https://github.com/longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489/actions/runs/32492303559) | push | ✅ | ✅ | ✅ | ✅ | |
-| [32496099572](https://github.com/longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489/actions/runs/32496099572) | push | ✅ | ❌ | ⏭️ | ⏭️ | IAM thiếu quyền ghi `models/candidate/` |
-| [32497126558](https://github.com/longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489/actions/runs/32497126558) | push | ✅ | ✅ | ✅ | ❌ | SG chặn SSH từ runner |
-| [32498717136](https://github.com/longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489/actions/runs/32498717136) | push | ✅ | ✅ | ✅ | ✅ | 5 bonus chạy thật trên CI |
-| **[32499561084](https://github.com/longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489/actions/runs/32499561084)** | **push** | ✅ | ✅ | ❌ | ⏭️ | **Bước 3 vòng 1 — gate chặn** |
-| **[32500181695](https://github.com/longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489/actions/runs/32500181695)** | **push** | ✅ | ✅ | ✅ | ✅ | **Bước 3 vòng 2 — deploy tự động** |
+| Run                                                                                                                            | Trigger        | Test | Train | Eval | Deploy | Ghi chú                                        |
+| ------------------------------------------------------------------------------------------------------------------------------ | -------------- | ---- | ----- | ---- | ------ | ----------------------------------------------- |
+| [32489775163](https://github.com/longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489/actions/runs/32489775163)           | dispatch       | ✅   | ✅    | ❌   | ⏭️   | eval gate chặn (0,688)                         |
+| [32490631626](https://github.com/longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489/actions/runs/32490631626)           | dispatch       | ✅   | ✅    | ✅   | ✅     |                                                 |
+| [32492303559](https://github.com/longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489/actions/runs/32492303559)           | push           | ✅   | ✅    | ✅   | ✅     |                                                 |
+| [32496099572](https://github.com/longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489/actions/runs/32496099572)           | push           | ✅   | ❌    | ⏭️ | ⏭️   | IAM thiếu quyền ghi`models/candidate/`      |
+| [32497126558](https://github.com/longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489/actions/runs/32497126558)           | push           | ✅   | ✅    | ✅   | ❌     | SG chặn SSH từ runner                         |
+| [32498717136](https://github.com/longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489/actions/runs/32498717136)           | push           | ✅   | ✅    | ✅   | ✅     | 5 bonus chạy thật trên CI                    |
+| **[32499561084](https://github.com/longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489/actions/runs/32499561084)** | **push** | ✅   | ✅    | ❌   | ⏭️   | **Bước 3 vòng 1 — gate chặn**        |
+| **[32500181695](https://github.com/longkhongbietcode/K3-Track2-Day21-ThieuVanLong-2A202601489/actions/runs/32500181695)** | **push** | ✅   | ✅    | ✅   | ✅     | **Bước 3 vòng 2 — deploy tự động** |
 
-**📸 Cần chụp:** tab Actions, sơ đồ 4 job của run `32499561084` (Eval đỏ, Deploy xám) và
-run `32500181695` (cả bốn xanh). → `docs/img/02-actions-eval-gate-blocked.png`,
-`docs/img/03-actions-all-green.png`
+Run `32499561084` — commit dữ liệu phase 1, accuracy 0,688 nên Eval đỏ và Deploy bị bỏ qua:
+
+![Actions run bị eval gate chặn](img/02-actions-eval-gate-blocked.png)
+
+Run `32500181695` — commit dữ liệu phase 2, accuracy 0,736 nên cả bốn job xanh và model
+được deploy. Dòng `Triggered via push` chứng minh không có thao tác thủ công nào:
+
+![Actions run với cả bốn job xanh](img/03-actions-all-green.png)
 
 ---
 
@@ -176,7 +189,7 @@ HTTP 400
 Rượu đỏ axit bay hơi cao (0,70) → `thap`; rượu trắng cồn 12% → `cao`. Model phân biệt
 được nhiều lớp, không trả hằng số. Input sai schema bị chặn bằng HTTP 400.
 
-**📸 Cần chụp:** terminal chạy 4 lệnh curl trên. → `docs/img/05-curl-predict.png`
+![Gọi API /health và /predict trên EC2](img/05-curl-predict.png)
 
 ---
 
@@ -212,14 +225,13 @@ Quyền được giới hạn đúng một security group duy nhất, xem
 
 Code đã sẵn sàng; chỉ cần thêm 3 secrets vào **Settings → Secrets and variables → Actions**:
 
-| Secret | Giá trị |
-|---|---|
-| `MLFLOW_TRACKING_URI` | `https://dagshub.com/<user>/<repo>.mlflow` |
-| `MLFLOW_TRACKING_USERNAME` | tên đăng nhập DagsHub |
-| `MLFLOW_TRACKING_PASSWORD` | access token DagsHub |
+| Secret                       | Giá trị                                    |
+| ---------------------------- | -------------------------------------------- |
+| `MLFLOW_TRACKING_URI`      | `https://dagshub.com/<user>/<repo>.mlflow` |
+| `MLFLOW_TRACKING_USERNAME` | tên đăng nhập DagsHub                    |
+| `MLFLOW_TRACKING_PASSWORD` | access token DagsHub                         |
 
-Nếu chưa có secret, workflow tự quay về `sqlite:///mlflow.db` nên pipeline không bao giờ
-gãy vì thiếu cấu hình.
+Nếu chưa có secret, workflow tự quay về `sqlite:///mlflow.db` nên pipeline không bao giờ gãy vì thiếu cấu hình.
 
 ---
 
@@ -230,14 +242,14 @@ python -m pytest tests/ -v        # 12 passed
 python src/train.py               # in phân phối nhãn + confusion matrix, ghi outputs/
 ```
 
-| Test | Kiểm tra |
-|---|---|
-| `test_train_returns_float` | `train()` trả float trong [0, 1] |
-| `test_metrics_file_created` | `outputs/metrics.json` có `accuracy` và `f1_score` |
-| `test_model_file_created` | `models/model.pkl` được tạo |
-| `test_supported_model_types` (×4) | cả 3 thuật toán train được, ghi đúng `model_type` |
-| `test_unknown_model_type_raises` | `model_type` sai báo `ValueError` rõ ràng |
-| `test_report_file_created` | `outputs/report.txt` có confusion matrix + precision/recall |
-| `test_label_distribution_in_metrics` | tỷ lệ nhãn ghi vào `metrics.json`, tổng = 1,0 |
-| `test_drift_warning_on_imbalanced_data` | lớp < 10% sinh cảnh báo |
-| `test_no_drift_warning_on_balanced_data` | dữ liệu cân bằng không sinh cảnh báo giả |
+| Test                                       | Kiểm tra                                                      |
+| ------------------------------------------ | -------------------------------------------------------------- |
+| `test_train_returns_float`               | `train()` trả float trong [0, 1]                            |
+| `test_metrics_file_created`              | `outputs/metrics.json` có `accuracy` và `f1_score`     |
+| `test_model_file_created`                | `models/model.pkl` được tạo                              |
+| `test_supported_model_types` (×4)       | cả 3 thuật toán train được, ghi đúng`model_type`     |
+| `test_unknown_model_type_raises`         | `model_type` sai báo `ValueError` rõ ràng               |
+| `test_report_file_created`               | `outputs/report.txt` có confusion matrix + precision/recall |
+| `test_label_distribution_in_metrics`     | tỷ lệ nhãn ghi vào`metrics.json`, tổng = 1,0            |
+| `test_drift_warning_on_imbalanced_data`  | lớp < 10% sinh cảnh báo                                     |
+| `test_no_drift_warning_on_balanced_data` | dữ liệu cân bằng không sinh cảnh báo giả               |
