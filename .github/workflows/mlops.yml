@@ -197,6 +197,26 @@ jobs:
           aws s3 cp outputs/report.txt "s3://$CLOUD_BUCKET/models/latest/report.txt"
           echo "Da thang hang model (accuracy ${{ needs.train.outputs.accuracy }}) len models/latest/."
 
+      # Security group chi mo port 22 cho IP co dinh cua may ca nhan, nen runner
+      # cua GitHub Actions (IP dong) khong SSH vao duoc. Mo dung IP cua runner
+      # trong luc deploy roi go ngay, thay vi phoi port 22 ra ca Internet.
+      - name: Whitelist runner IP for SSH
+        id: whitelist
+        env:
+          SECURITY_GROUP: ${{ secrets.VM_SECURITY_GROUP || 'sg-02d44d2d511d4cea5' }}
+        run: |
+          RUNNER_IP=$(curl -sf https://checkip.amazonaws.com | tr -d '[:space:]')
+          echo "runner_ip=$RUNNER_IP" >> "$GITHUB_OUTPUT"
+          echo "security_group=$SECURITY_GROUP" >> "$GITHUB_OUTPUT"
+
+          aws ec2 authorize-security-group-ingress \
+            --group-id "$SECURITY_GROUP" \
+            --protocol tcp \
+            --port 22 \
+            --cidr "$RUNNER_IP/32"
+
+          echo "Da mo tam port 22 cho $RUNNER_IP/32."
+
       - name: SSH deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -216,3 +236,15 @@ jobs:
 
             sudo journalctl -u mlops-serve -n 50 --no-pager
             exit 1
+
+      # always() de port 22 luon duoc dong lai ke ca khi deploy that bai.
+      - name: Revoke runner IP
+        if: always() && steps.whitelist.outputs.runner_ip != ''
+        run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id "${{ steps.whitelist.outputs.security_group }}" \
+            --protocol tcp \
+            --port 22 \
+            --cidr "${{ steps.whitelist.outputs.runner_ip }}/32"
+
+          echo "Da dong port 22 cho ${{ steps.whitelist.outputs.runner_ip }}/32."
